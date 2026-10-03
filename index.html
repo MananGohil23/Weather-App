@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Interactive weather and 5-day forecast dashboard powered by Open-Meteo." />
+  <title>SkyCast · Weather Dashboard</title>
+  <link rel="preconnect" href="https://api.open-meteo.com" />
+  <link rel="preconnect" href="https://geocoding-api.open-meteo.com" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand__icon" aria-hidden="true">☁</span>
+        <span class="brand__name">SkyCast</span>
+      </div>
+
+      <form class="search" id="search-form" role="search" autocomplete="off">
+        <div class="search__field">
+          <span class="search__icon" aria-hidden="true">⌕</span>
+          <input
+            type="text"
+            id="search-input"
+            class="search__input"
+            placeholder="Search a city…"
+            aria-label="Search for a city"
+            spellcheck="false"
+          />
+          <button
+            type="button"
+            id="clear-btn"
+            class="search__clear"
+            aria-label="Clear search"
+            hidden
+          >×</button>
+        </div>
+
+        <button type="submit" class="search__submit" id="search-btn">
+          Search
+        </button>
+
+        <button
+          type="button"
+          id="geo-btn"
+          class="search__geo"
+          title="Use my current location"
+          aria-label="Use my current location"
+        >
+          <span aria-hidden="true">◎</span>
+          <span class="search__geo-text">My location</span>
+        </button>
+
+        <ul class="suggestions" id="suggestions" role="listbox" hidden></ul>
+      </form>
+    </header>
+
+    <main class="main">
+      <!-- Feedback / states -->
+      <section class="state" id="state-welcome" aria-live="polite">
+        <div class="state__art" aria-hidden="true">🌤️</div>
+        <h1 class="state__title">Check the sky anywhere</h1>
+        <p class="state__text">
+          Search for a city or use your current location to see live conditions
+          and a 5-day forecast.
+        </p>
+      </section>
+
+      <section class="state" id="state-loading" hidden aria-live="polite" aria-busy="true">
+        <div class="spinner" aria-hidden="true"></div>
+        <p class="state__text">Fetching the latest weather…</p>
+      </section>
+
+      <section class="state state--error" id="state-error" hidden role="alert">
+        <div class="state__art" aria-hidden="true">⚠️</div>
+        <p class="state__text" id="error-text">Something went wrong.</p>
+        <button type="button" class="btn btn--ghost" id="retry-btn">Try again</button>
+      </section>
+
+      <!-- Dashboard -->
+      <div id="dashboard" hidden>
+        <section class="current card" id="current-card" aria-live="polite">
+          <div class="current__head">
+            <div class="current__place">
+              <h2 class="current__city" id="cur-city">—</h2>
+              <p class="current__meta" id="cur-meta">—</p>
+            </div>
+            <p class="current__updated" id="cur-updated">—</p>
+          </div>
+
+          <div class="current__body">
+            <div class="current__main">
+              <div class="current__icon" id="cur-icon" aria-hidden="true">☀️</div>
+              <div class="current__temp-wrap">
+                <span class="current__temp" id="cur-temp">--</span>
+                <span class="current__unit">°C</span>
+              </div>
+              <p class="current__desc" id="cur-desc">—</p>
+            </div>
+
+            <ul class="current__stats">
+              <li class="stat">
+                <span class="stat__label">Feels like</span>
+                <span class="stat__value" id="cur-feels">--°</span>
+              </li>
+              <li class="stat">
+                <span class="stat__label">Humidity</span>
+                <span class="stat__value" id="cur-humidity">--%</span>
+              </li>
+              <li class="stat">
+                <span class="stat__label">Wind</span>
+                <span class="stat__value" id="cur-wind">-- km/h</span>
+              </li>
+              <li class="stat">
+                <span class="stat__label">Pressure</span>
+                <span class="stat__value" id="cur-pressure">-- hPa</span>
+              </li>
+              <li class="stat">
+                <span class="stat__label">Precipitation</span>
+                <span class="stat__value" id="cur-precip">-- mm</span>
+              </li>
+              <li class="stat">
+                <span class="stat__label">Sunrise / Sunset</span>
+                <span class="stat__value" id="cur-sun">-- / --</span>
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        <section class="forecast">
+          <div class="forecast__head">
+            <h2 class="section-title">5-Day Forecast</h2>
+            <span class="section-sub" id="forecast-range">—</span>
+          </div>
+          <div class="forecast__grid" id="forecast-grid"></div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <span>Data from <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a></span>
+    </footer>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
