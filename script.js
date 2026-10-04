@@ -43,12 +43,131 @@ const WEATHER_CODES = {
   99: { label: "Thunderstorm, hail", icon: "⛈️", night: "⛈️" },
 };
 
+function weatherKind(code) {
+  if (code === 0) return "clear";
+  if (code === 1) return "mainly-clear";
+  if (code === 2) return "partly";
+  if (code === 3) return "overcast";
+  if (code === 45 || code === 48) return "fog";
+  if (code >= 51 && code <= 57) return "drizzle";
+  if (code >= 61 && code <= 67) return "rain";
+  if (code >= 71 && code <= 77) return "snow";
+  if (code >= 80 && code <= 82) return "rain";
+  if (code === 85 || code === 86) return "snow";
+  if (code >= 95) return "thunder";
+  return "cloudy";
+}
+
 function weatherInfo(code, isDay = 1) {
   const entry = WEATHER_CODES[code] || { label: "Unknown", icon: "🌡️", night: "🌡️" };
   return {
     label: entry.label,
+    kind: weatherKind(code),
     icon: !isDay && entry.night ? entry.night : entry.icon,
   };
+}
+
+function weatherTheme(code, isDay = 1) {
+  const kind = weatherKind(code);
+  if (kind === "clear" || kind === "mainly-clear") return isDay ? "clear-day" : "clear-night";
+  if (kind === "snow") return "snow";
+  if (kind === "thunder") return "thunder";
+  if (kind === "rain" || kind === "drizzle") return "rain";
+  if (kind === "fog") return "fog";
+  return isDay ? "cloudy-day" : "cloudy-night";
+}
+
+let wiUid = 0;
+
+function weatherIconSVG(kind, isDay = 1) {
+  const uid = "wi" + ++wiUid;
+  const gSun = `url(#${uid}-sun)`;
+  const gMoon = `url(#${uid}-moon)`;
+  const gCloud = `url(#${uid}-cloud)`;
+  const gCloudDark = `url(#${uid}-cloud-dark)`;
+
+  const defs =
+    `<defs>` +
+    `<radialGradient id="${uid}-sun" cx="24" cy="22" r="22" gradientUnits="userSpaceOnUse">` +
+    `<stop offset="0" stop-color="#fff4c8"/><stop offset="1" stop-color="#ffb703"/></radialGradient>` +
+    `<linearGradient id="${uid}-moon" x1="20" y1="12" x2="52" y2="54" gradientUnits="userSpaceOnUse">` +
+    `<stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#b9c7ff"/></linearGradient>` +
+    `<linearGradient id="${uid}-cloud" x1="16" y1="20" x2="50" y2="52" gradientUnits="userSpaceOnUse">` +
+    `<stop offset="0" stop-color="#eef3ff"/><stop offset="1" stop-color="#a9bbdd"/></linearGradient>` +
+    `<linearGradient id="${uid}-cloud-dark" x1="16" y1="20" x2="50" y2="52" gradientUnits="userSpaceOnUse">` +
+    `<stop offset="0" stop-color="#c3cfea"/><stop offset="1" stop-color="#7c8fb9"/></linearGradient>` +
+    `</defs>`;
+
+  const rays = (cx, cy, r1, r2, w) => {
+    let s = "";
+    for (let i = 0; i < 8; i++) {
+      const a = (Math.PI / 4) * i;
+      const x1 = cx + Math.cos(a) * r1;
+      const y1 = cy + Math.sin(a) * r1;
+      const x2 = cx + Math.cos(a) * r2;
+      const y2 = cy + Math.sin(a) * r2;
+      s += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`;
+    }
+    return `<g class="wi__rays" stroke="#ffb703" stroke-width="${w}" stroke-linecap="round">${s}</g>`;
+  };
+
+  const cloud = (cls, fill, tx, ty) =>
+    `<g class="wi__cloud ${cls}" fill="${fill}" transform="translate(${tx} ${ty})">` +
+    `<circle cx="26" cy="34" r="10"/><circle cx="38" cy="29" r="13"/>` +
+    `<circle cx="48" cy="38" r="8"/><rect x="18" y="35" width="32" height="13" rx="6.5"/></g>`;
+
+  let inner;
+  if (kind === "clear") {
+    inner = isDay
+      ? rays(32, 32, 17, 27, 3.4) +
+        `<circle class="wi__core" cx="32" cy="32" r="12" fill="${gSun}"/>`
+      : `<g class="wi__star s1" fill="#dfe7ff"><circle cx="14" cy="18" r="1.7"/></g>` +
+        `<g class="wi__star s2" fill="#dfe7ff"><circle cx="50" cy="16" r="1.4"/></g>` +
+        `<g class="wi__star s3" fill="#dfe7ff"><circle cx="47" cy="45" r="1.6"/></g>` +
+        `<path class="wi__moon" d="M42 12a20 20 0 1 0 0 40 25 25 0 0 1 0-40Z" fill="${gMoon}"/>`;
+  } else if (kind === "mainly-clear" || kind === "partly") {
+    const big = kind === "mainly-clear";
+    const c = big ? 26 : 24;
+    inner =
+      rays(c, c, big ? 13 : 12, big ? 21 : 19, big ? 3 : 2.8) +
+      `<circle class="wi__core" cx="${c}" cy="${c}" r="${big ? 9 : 8}" fill="${gSun}"/>` +
+      cloud("", gCloud, 6, 7);
+  } else if (kind === "overcast" || kind === "cloudy") {
+    inner = cloud("wi__cloud--back", gCloudDark, -2, -4) + cloud("", gCloud, 4, 6);
+  } else if (kind === "fog") {
+    inner =
+      cloud("", gCloudDark, 4, -2) +
+      `<g class="wi__fogline" stroke="#c3ccda" stroke-width="3" stroke-linecap="round"><line x1="18" y1="46" x2="46" y2="46"/></g>` +
+      `<g class="wi__fogline l2" stroke="#c3ccda" stroke-width="3" stroke-linecap="round"><line x1="15" y1="53" x2="49" y2="53"/></g>` +
+      `<g class="wi__fogline l3" stroke="#c3ccda" stroke-width="3" stroke-linecap="round"><line x1="21" y1="60" x2="43" y2="60"/></g>`;
+  } else if (kind === "drizzle" || kind === "rain") {
+    inner =
+      cloud("", gCloudDark, 4, -6) +
+      `<g stroke="#6fd0ff" stroke-width="3.2" stroke-linecap="round">` +
+      `<line class="wi__drop d1" x1="26" y1="48" x2="23" y2="56"/>` +
+      `<line class="wi__drop d2" x1="36" y1="48" x2="33" y2="58"/>` +
+      `<line class="wi__drop d3" x1="46" y1="48" x2="43" y2="56"/></g>`;
+  } else if (kind === "snow") {
+    inner =
+      cloud("", gCloudDark, 4, -6) +
+      `<g fill="#eaf4ff">` +
+      `<circle class="wi__flake f1" cx="26" cy="52" r="2.4"/>` +
+      `<circle class="wi__flake f2" cx="36" cy="55" r="2.4"/>` +
+      `<circle class="wi__flake f3" cx="46" cy="52" r="2.4"/></g>`;
+  } else if (kind === "thunder") {
+    inner =
+      cloud("", gCloudDark, 4, -6) +
+      `<path class="wi__bolt" d="M35 40l-10 15h7l-3 12 13-18h-7l6-9z" fill="#ffd166"/>`;
+  } else {
+    inner = cloud("", gCloud, 4, 4);
+  }
+
+  return (
+    `<svg class="wi" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">` +
+    defs +
+    inner +
+    `</svg>`
+  );
 }
 
 /* -------------------------------------------------------------------------
@@ -270,6 +389,8 @@ function renderCurrent(place, data) {
   const daily = data.daily || {};
   const info = weatherInfo(current.weather_code, current.is_day);
 
+  applyTheme(weatherTheme(current.weather_code, current.is_day));
+
   els.curCity.textContent = place.coordsOnly
     ? "Current location"
     : place.name || "—";
@@ -286,8 +407,8 @@ function renderCurrent(place, data) {
   els.curMeta.textContent = metaParts.join(" · ");
 
   els.curUpdated.textContent = `Updated ${formatClock(current.time)} local`;
-  els.curIcon.textContent = info.icon;
-  els.curTemp.textContent = Math.round(current.temperature_2m);
+  els.curIcon.innerHTML = weatherIconSVG(info.kind, current.is_day);
+  animateNumber(els.curTemp, Math.round(current.temperature_2m));
   els.curDesc.textContent = info.label;
 
   els.curFeels.textContent = `${Math.round(current.apparent_temperature)}°`;
@@ -332,16 +453,17 @@ function renderForecast(data) {
 
     const card = document.createElement("article");
     card.className = "forecast-card" + (isToday ? " forecast-card--today" : "");
+    card.style.setProperty("--i", String(i));
     card.innerHTML =
       `<h3 class="forecast-card__day">${escapeHtml(dayName)}</h3>` +
       `<p class="forecast-card__date">${formatShortDate(dateStr)}</p>` +
-      `<div class="forecast-card__icon" aria-hidden="true">${info.icon}</div>` +
+      `<div class="forecast-card__icon" aria-hidden="true">${weatherIconSVG(info.kind, 1)}</div>` +
       `<p class="forecast-card__desc">${escapeHtml(info.label)}</p>` +
       `<div class="forecast-card__temps">` +
       `<span class="temp-max">${Math.round(max)}°</span>` +
       `<span class="temp-min">${Math.round(min)}°</span>` +
       `</div>` +
-      `<div class="forecast-card__bar"><span style="width:${pct.toFixed(1)}%"></span></div>` +
+      `<div class="forecast-card__bar"><span style="--w:${pct.toFixed(1)}%"></span></div>` +
       `<div class="forecast-card__temps" style="font-size:0.72rem;color:var(--text-muted)">` +
       `<span>${formatClock(daily.sunrise[i])}</span>` +
       `<span>${formatClock(daily.sunset[i])}</span>` +
@@ -525,17 +647,317 @@ function escapeHtml(str) {
 }
 
 /* -------------------------------------------------------------------------
+   Motion preferences & animated number counter
+   ------------------------------------------------------------------------- */
+const reduceMotion =
+  typeof window.matchMedia === "function" &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const finePointer =
+  typeof window.matchMedia === "function" &&
+  window.matchMedia("(pointer: fine)").matches;
+
+function formatNumber(value, decimals = 0) {
+  if (typeof value !== "number" || Number.isNaN(value)) return "--";
+  return value.toFixed(decimals);
+}
+
+function animateNumber(el, to, { decimals = 0, duration = 850 } = {}) {
+  if (!el) return;
+  const previous = Number(el.dataset.value);
+  const from = Number.isFinite(previous) ? previous : 0;
+  el.dataset.value = String(to);
+  if (reduceMotion || !Number.isFinite(to) || from === to) {
+    el.textContent = formatNumber(to, decimals);
+    return;
+  }
+  const start = performance.now();
+  function frame() {
+    const elapsed = performance.now() - start;
+    const p = Math.min(1, Math.max(0, elapsed / duration));
+    const eased = 1 - Math.pow(1 - p, 3);
+    el.textContent = formatNumber(from + (to - from) * eased, decimals);
+    if (p < 1) requestAnimationFrame(frame);
+    else el.textContent = formatNumber(to, decimals);
+  }
+  requestAnimationFrame(frame);
+}
+
+/* -------------------------------------------------------------------------
+   Dynamic themes
+   ------------------------------------------------------------------------- */
+const THEME_CLASSES = [
+  "theme-clear-day",
+  "theme-clear-night",
+  "theme-cloudy-day",
+  "theme-cloudy-night",
+  "theme-rain",
+  "theme-thunder",
+  "theme-snow",
+  "theme-fog",
+];
+let currentTheme = "clear-day";
+
+function applyTheme(theme) {
+  if (theme === currentTheme) return;
+  currentTheme = theme;
+  document.body.classList.remove.apply(document.body.classList, THEME_CLASSES);
+  document.body.classList.add("theme-" + theme);
+  fx.setTheme(theme);
+}
+
+/* -------------------------------------------------------------------------
+   Particle / weather FX canvas
+   ------------------------------------------------------------------------- */
+const fx = (() => {
+  const canvas = document.getElementById("weather-fx");
+  const ctx = canvas && canvas.getContext ? canvas.getContext("2d") : null;
+  let width = 0;
+  let height = 0;
+  let dpr = 1;
+  let particles = [];
+  let theme = "clear-day";
+  let rafId = null;
+  let lastTime = 0;
+  let flash = 0;
+  let running = false;
+
+  const rand = (min, max) => min + Math.random() * (max - min);
+
+  function resize() {
+    if (!canvas || !ctx) return;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = Math.floor(width * dpr);
+    canvas.height = Math.floor(height * dpr);
+    canvas.style.width = width + "px";
+    canvas.style.height = height + "px";
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    build();
+  }
+
+  function build() {
+    particles = [];
+    if (!ctx) return;
+    const area = width * height;
+    if (theme === "rain" || theme === "thunder") {
+      const n = Math.min(260, Math.round(area / 8500));
+      for (let i = 0; i < n; i++)
+        particles.push({
+          x: rand(0, width),
+          y: rand(-height, height),
+          len: rand(11, 24),
+          sp: rand(7, 13),
+          o: rand(0.12, 0.45),
+        });
+    } else if (theme === "snow") {
+      const n = Math.min(170, Math.round(area / 14000));
+      for (let i = 0; i < n; i++)
+        particles.push({
+          x: rand(0, width),
+          y: rand(-height, height),
+          r: rand(1, 2.8),
+          sp: rand(0.5, 1.5),
+          dx: rand(-0.4, 0.4),
+          ph: rand(0, 6.28),
+          o: rand(0.3, 0.9),
+        });
+    } else if (theme === "clear-night" || theme === "cloudy-night") {
+      const n = Math.min(150, Math.round(area / 15000));
+      for (let i = 0; i < n; i++)
+        particles.push({
+          x: rand(0, width),
+          y: rand(0, height * 0.85),
+          r: rand(0.6, 1.8),
+          ph: rand(0, 6.28),
+          sp: rand(0.4, 1.3),
+          o: rand(0.15, 0.85),
+        });
+    } else {
+      const n = Math.min(70, Math.round(area / 32000));
+      for (let i = 0; i < n; i++)
+        particles.push({
+          x: rand(0, width),
+          y: rand(0, height),
+          r: rand(1, 3.2),
+          sp: rand(0.15, 0.5),
+          dx: rand(-0.2, 0.2),
+          ph: rand(0, 6.28),
+          o: rand(0.05, 0.16),
+        });
+    }
+  }
+
+  function draw(now) {
+    const dt = Math.min(40, now - lastTime) / 16.67 || 1;
+    lastTime = now;
+    ctx.clearRect(0, 0, width, height);
+
+    if (theme === "rain" || theme === "thunder") {
+      ctx.lineCap = "round";
+      ctx.lineWidth = 1.5;
+      for (const p of particles) {
+        p.y += p.sp * dt;
+        p.x -= p.sp * 0.35 * dt;
+        if (p.y > height + 30) {
+          p.y = -30;
+          p.x = rand(0, width);
+        }
+        ctx.strokeStyle = `rgba(150, 214, 255, ${p.o})`;
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p.x - p.len * 0.35, p.y + p.len);
+        ctx.stroke();
+      }
+      if (theme === "thunder") {
+        if (flash <= 0 && Math.random() < 0.004) flash = 1;
+        if (flash > 0) {
+          ctx.fillStyle = `rgba(200, 190, 255, ${flash * 0.16})`;
+          ctx.fillRect(0, 0, width, height);
+          flash -= 0.06 * dt;
+        }
+      }
+    } else if (theme === "snow") {
+      for (const p of particles) {
+        p.y += p.sp * dt;
+        p.x += Math.sin(now / 900 + p.ph) * 0.4 + p.dx * dt;
+        if (p.y > height + 10) {
+          p.y = -10;
+          p.x = rand(0, width);
+        }
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(234, 244, 255, ${p.o})`;
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (theme === "clear-night" || theme === "cloudy-night") {
+      for (const p of particles) {
+        const tw = 0.5 + 0.5 * Math.sin((now / 700) * p.sp + p.ph);
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(226, 233, 255, ${p.o * tw})`;
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else {
+      for (const p of particles) {
+        p.y -= p.sp * dt;
+        p.x += Math.sin(now / 1400 + p.ph) * 0.25 + p.dx * dt;
+        if (p.y < -10) {
+          p.y = height + 10;
+          p.x = rand(0, width);
+        }
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(255, 255, 255, ${p.o})`;
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    rafId = requestAnimationFrame(draw);
+  }
+
+  function start() {
+    if (!ctx || reduceMotion || running) return;
+    running = true;
+    resize();
+    lastTime = performance.now();
+    rafId = requestAnimationFrame(draw);
+  }
+
+  function setTheme(next) {
+    theme = next;
+    if (!ctx) return;
+    if (!running) start();
+    else build();
+  }
+
+  window.addEventListener("resize", () => {
+    if (running) resize();
+  });
+
+  return { setTheme, start };
+})();
+
+/* -------------------------------------------------------------------------
+   Micro-interactions: cursor spotlight, 3D tilt, button ripples
+   ------------------------------------------------------------------------- */
+function setupCursorGlow() {
+  const glow = document.getElementById("cursor-glow");
+  if (!glow || reduceMotion || !finePointer) return;
+  document.body.classList.add("pointer-fine");
+
+  let targetX = window.innerWidth / 2;
+  let targetY = window.innerHeight / 2;
+  let currentX = targetX;
+  let currentY = targetY;
+
+  window.addEventListener("pointermove", (event) => {
+    targetX = event.clientX;
+    targetY = event.clientY;
+  });
+
+  (function loop() {
+    currentX += (targetX - currentX) * 0.12;
+    currentY += (targetY - currentY) * 0.12;
+    glow.style.transform = `translate(${currentX}px, ${currentY}px) translate(-50%, -50%)`;
+    requestAnimationFrame(loop);
+  })();
+}
+
+function setupTilt() {
+  const card = document.querySelector(".current.card");
+  if (!card || reduceMotion || !finePointer) return;
+
+  let frame = null;
+  card.addEventListener("pointermove", (event) => {
+    const rect = card.getBoundingClientRect();
+    const px = (event.clientX - rect.left) / rect.width - 0.5;
+    const py = (event.clientY - rect.top) / rect.height - 0.5;
+    if (frame) cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(() => {
+      card.style.transform = `rotateY(${(px * 6).toFixed(2)}deg) rotateX(${(
+        -py * 6
+      ).toFixed(2)}deg) translateY(-2px)`;
+    });
+  });
+
+  card.addEventListener("pointerleave", () => {
+    if (frame) cancelAnimationFrame(frame);
+    card.style.transform = "";
+  });
+}
+
+function setupRipple() {
+  if (reduceMotion) return;
+  document.addEventListener("pointerdown", (event) => {
+    const target = event.target.closest(".btn, .search__submit, .search__geo");
+    if (!target) return;
+    const rect = target.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height) * 2.2;
+    const span = document.createElement("span");
+    span.className = "ripple";
+    span.style.width = span.style.height = size + "px";
+    span.style.left = event.clientX - rect.left + "px";
+    span.style.top = event.clientY - rect.top + "px";
+    target.appendChild(span);
+    setTimeout(() => span.remove(), 640);
+  });
+}
+
+/* -------------------------------------------------------------------------
    Event wiring
    ------------------------------------------------------------------------- */
 els.form.addEventListener("submit", (event) => {
   event.preventDefault();
+  const active = state.activeSuggestion;
+  const chosen = active >= 0 ? state.suggestions[active] : null;
   closeSuggestions();
-  const value = els.input.value.trim();
-  if (state.activeSuggestion >= 0 && state.suggestions[state.activeSuggestion]) {
-    chooseSuggestion(state.activeSuggestion);
+  if (chosen) {
+    loadWeather(chosen);
     return;
   }
-  loadByQuery(value);
+  loadByQuery(els.input.value.trim());
 });
 
 els.input.addEventListener("input", onInput);
@@ -591,6 +1013,11 @@ document.addEventListener("click", (event) => {
    ------------------------------------------------------------------------- */
 (function init() {
   setView("welcome");
+  setupCursorGlow();
+  setupTilt();
+  setupRipple();
+  fx.start();
+
   const last = readLastLocation();
   if (last) loadWeather(last);
 })();
